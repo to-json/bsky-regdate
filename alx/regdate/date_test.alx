@@ -1,4 +1,4 @@
-fn date(s: Str) -> Date { parse_iso_date(s).unwrap }
+def date(s: Str) -> Date { parse_iso_date(s).unwrap }
 
 test "parse" {
   d = date("2023-04-27T12:34:56.789Z")

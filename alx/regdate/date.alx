@@ -20,8 +20,8 @@ pub struct Date {
   }
 
   pub fn days_until(later: Date) -> ~Int {
-    then = ~(self.days_since_1970)
-    ~(~(later.days_since_1970) - then)
+    then = ~self.days_since_1970
+    ~(~later.days_since_1970 - then)
   }
 
   pub fn months_until(later: Date) -> ~Int {
@@ -34,15 +34,15 @@ pub struct Date {
   pub fn ymd -> Str { "#{year}-#{two_digits(month)}-#{two_digits(day)}" }
 
   pub fn age_at(now: Date) -> ~Str {
-    months = ~(self.months_until(now))
+    months = ~self.months_until(now)
     case {
       months >= MONTHS_PER_YEAR => years_and_months(months)
       months >= 1 => pluralize(months, "month")
-      _ => days_ago(~(self.days_until(now)))
+      _ => days_ago(~self.days_until(now))
     }
   }
 
-  pub fn tone_at(now: Date) -> ~Str { account_tone(~(self.days_until(now))) }
+  pub fn tone_at(now: Date) -> ~Str { account_tone(~self.days_until(now)) }
 }
 
 fn march_based_year(year: Int, month: Int) -> ~Int { month <= 2 ? ~(year - 1) : year }
