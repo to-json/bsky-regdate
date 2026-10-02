@@ -27,3 +27,5 @@ Chrome → chrome://extensions → Load unpacked → `ext/`.
 Firefox 121+ → about:debugging → Load Temporary Add-on → `ext/manifest.json`.
 
 `ext/pkg/` is a vendored build of the Alexandrite compiler (wasm), Apache-2.0 WITH LLVM-exception; see `ext/pkg/LICENSE`.
+
+Licensed under Apache-2.0 (`LICENSE`), except `ext/pkg/`.
