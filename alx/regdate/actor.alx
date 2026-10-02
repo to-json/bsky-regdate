@@ -1,0 +1,80 @@
+PLC_PREFIX = "did:plc:"
+WEB_PREFIX = "did:web:"
+AT_SCHEME = "at://"
+PROFILE_COLLECTION = "app.bsky.actor.profile"
+MAX_HANDLE_LENGTH = 253
+
+fn dns_label?(s: Str) -> Bool { present?(s) && s.bytes.all? { hostname_byte?(it) } }
+
+pub fn handle?(s: Str) -> Bool {
+  labels = s.split(".")
+  s.size <= MAX_HANDLE_LENGTH && labels.size >= 2 && labels.all? { dns_label?(it) }
+}
+
+pub fn plc_did?(s: Str) -> Bool {
+  id = without_prefix(s, PLC_PREFIX)
+  starts_with?(s, PLC_PREFIX) && present?(id) && id.bytes.all? { base32_byte?(it) }
+}
+
+pub fn web_did?(s: Str) -> Bool { starts_with?(s, WEB_PREFIX) && handle?(without_prefix(s, WEB_PREFIX)) }
+
+pub fn did?(s: Str) -> Bool { plc_did?(s) || web_did?(s) }
+
+fn actor?(s: Str) -> Bool { did?(s) || handle?(s) }
+
+fn profile_tab?(s: Str) -> Bool {
+  case s {
+    "replies" | "media" | "likes" | "feeds" | "lists" | "starter-packs" | "videos" => true
+    _ => false
+  }
+}
+
+fn decode_colons(s: Str) -> Str { replace(replace(s, "%3A", ":"), "%3a", ":") }
+
+fn without_query(url: Str) -> Str { before(before(url, "#"), "?") }
+
+pub fn path_segments(url: Str) -> [Str] { nonblank(without_query(url).split("/").drop(3).to_a) }
+
+fn profile_path?(segments: [Str]) -> Bool {
+  names_profile = nth(segments, 0) == "profile"
+  bare = segments.size == 2
+  on_tab = segments.size == 3 && profile_tab?(nth(segments, 2))
+  names_profile && (bare || on_tab)
+}
+
+fn at_handle_path?(segments: [Str]) -> Bool { segments.size == 1 && starts_with?(nth(segments, 0), "@") }
+
+fn actor_candidate(segments: [Str]) -> Str {
+  case {
+    profile_path?(segments) => decode_colons(nth(segments, 1))
+    at_handle_path?(segments) => without_prefix(nth(segments, 0), "@")
+    _ => ""
+  }
+}
+
+pub fn actor_from_url(url: Str) -> Str? {
+  candidate = actor_candidate(path_segments(url))
+  actor?(candidate) ? candidate : none
+}
+
+fn names_profile_record?(parts: [Str]) -> Bool {
+  parts.size == 1 || (parts.size == 3 && nth(parts, 1) == PROFILE_COLLECTION && nth(parts, 2) == "self")
+}
+
+pub fn did_from_profile_uri(uri: Str) -> Str? {
+  parts = without_prefix(uri, AT_SCHEME).split("/")
+  did = nth(parts, 0)
+  starts_with?(uri, AT_SCHEME) && did?(did) && names_profile_record?(parts) ? did : none
+}
+
+fn did_from_hints(hints: [Str]) -> Str? {
+  for hint in hints {
+    if did = did_from_profile_uri(hint) { return did }
+  }
+  none
+}
+
+pub fn profile_actor(url: Str, hints: [Str], header_visible: Bool) -> Str? {
+  if actor = actor_from_url(url) { return actor }
+  header_visible ? did_from_hints(hints) : none
+}

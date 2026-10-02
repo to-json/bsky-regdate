@@ -1,0 +1,29 @@
+fn member(json: Str, key: Str, depth: Int) -> Str { string_member(json, key, depth).unwrap_or(none) || "?" }
+
+test "top-level member" {
+  json = "{\"did\": \"did:plc:abc\", \"handle\":\"a.b\"}"
+  assert_eq member(json, "handle", TOP_LEVEL), "a.b"
+  assert_eq member(json, "did", TOP_LEVEL), "did:plc:abc"
+  assert_eq member(json, "nope", TOP_LEVEL), "?"
+}
+
+test "nested members don't count at the top level" {
+  json = "{\"viewer\":{\"createdAt\":\"x\"},\"createdAt\":\"2023-04-27T00:00:00Z\"}"
+  assert_eq member(json, "createdAt", TOP_LEVEL), "2023-04-27T00:00:00Z"
+  assert_eq member(json, "createdAt", INSIDE_TOP_LEVEL), "x"
+}
+
+test "first entry of an array" {
+  json = "[{\"did\":\"d\",\"operation\":{\"sig\":\"q\\\"z\"},\"createdAt\":\"2024-01-02T03:04:05Z\"},{\"createdAt\":\"2025-01-01T00:00:00Z\"}]"
+  assert_eq member(json, "createdAt", INSIDE_TOP_LEVEL), "2024-01-02T03:04:05Z"
+}
+
+test "keys inside string values are ignored" {
+  json = "{\"description\":\"\\\"createdAt\\\": lol\",\"createdAt\":\"real\"}"
+  assert_eq member(json, "createdAt", TOP_LEVEL), "real"
+}
+
+test "non-string values" {
+  assert_eq member("{\"n\": 3, \"m\": \"x\"}", "n", TOP_LEVEL), "?"
+  assert_eq member("{\"n\": {\"m\": 1}}", "n", TOP_LEVEL), "?"
+}

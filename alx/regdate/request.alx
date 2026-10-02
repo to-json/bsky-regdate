@@ -1,0 +1,37 @@
+pub struct Request {
+  now: Str
+  url: Str
+  hints: [Str]
+  header_visible: Bool
+  fetched: Map[Str, Str]
+  failed: [Str]
+}
+
+struct Line {
+  keyword: Str
+  value: Str
+}
+
+fn parse_line(line: Str) -> Line { Line.new(keyword: first_word(line), value: after_first_word(line)) }
+fn lines_of(text: Str) -> [Line] { text.split("\n").map { parse_line(it) }.to_a }
+fn values_of(lines: [Line], keyword: Str) -> [Str] { lines.select { it.keyword == keyword }.map { it.value }.to_a }
+fn value_of(lines: [Line], keyword: Str) -> Str { first(values_of(lines, keyword)) || "" }
+fn mentions?(lines: [Line], keyword: Str) -> Bool { lines.any? { it.keyword == keyword } }
+
+fn fetched_paths(lines: [Line]) -> Map[Str, Str] {
+  paths: Map[Str, Str] = {}
+  for got in values_of(lines, "got") { paths[first_word(got)] = after_first_word(got) }
+  paths
+}
+
+pub fn parse_request(text: Str) -> Request {
+  lines = lines_of(text)
+  Request.new(
+    now: value_of(lines, "now"),
+    url: value_of(lines, "url"),
+    hints: values_of(lines, "hint"),
+    header_visible: mentions?(lines, "header"),
+    fetched: fetched_paths(lines),
+    failed: values_of(lines, "failed"),
+  )
+}

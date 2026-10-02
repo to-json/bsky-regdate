@@ -1,0 +1,43 @@
+test "handles and dids" {
+  assert handle?("alice.bsky.social")
+  assert handle?("Jay.Bsky.Team")
+  assert !handle?("alice")
+  assert !handle?("a b.com")
+  assert !handle?(".a.com")
+  assert did?("did:plc:z72i7hdynmk6r22z27h6tvur")
+  assert did?("did:web:example.com")
+  assert !did?("did:plc:")
+  assert !did?("did:key:abc")
+  assert !did?("did:plc:ABC")
+}
+
+test "path segments" {
+  assert_eq path_segments("https://bsky.app/profile/a.b?x=1#y").size, 2
+  assert_eq path_segments("https://bsky.app").size, 0
+  assert_eq path_segments("https://bsky.app/").size, 0
+}
+
+test "profile urls on any appview" {
+  assert_eq actor_from_url("https://bsky.app/profile/alice.bsky.social") || "-", "alice.bsky.social"
+  assert_eq actor_from_url("https://blacksky.community/profile/did:plc:abc234/") || "-", "did:plc:abc234"
+  assert_eq actor_from_url("https://witchsky.app/profile/did%3Aplc%3Aabc234") || "-", "did:plc:abc234"
+  assert_eq actor_from_url("https://mu.social/profile/x.eu/likes") || "-", "x.eu"
+  assert_eq actor_from_url("https://example.com/@x.example.com") || "-", "x.example.com"
+}
+
+test "not profiles" {
+  assert actor_from_url("https://bsky.app/").none?
+  assert actor_from_url("https://bsky.app/notifications").none?
+  assert actor_from_url("https://bsky.app/profile/a.b/post/3abc").none?
+  assert actor_from_url("https://bsky.app/profile/a.b/follows").none?
+  assert actor_from_url("https://bsky.app/profile/notahandle").none?
+  assert actor_from_url("https://example.com/@ann").none?
+}
+
+test "at:// hints need a header" {
+  hints = ["at://did:plc:abc234/app.bsky.actor.profile/self"]
+  assert_eq profile_actor("https://x.example/u/7", hints, true) || "-", "did:plc:abc234"
+  assert profile_actor("https://x.example/u/7", hints, false).none?
+  assert profile_actor("https://x.example/u/7", ["at://did:plc:abc234/app.bsky.feed.post/3k"], true).none?
+  assert_eq profile_actor("https://bsky.app/profile/a.b", hints, true) || "-", "a.b"
+}

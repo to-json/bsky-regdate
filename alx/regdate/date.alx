@@ -1,0 +1,107 @@
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+MONTHS_PER_YEAR = 12
+DAYS_PER_400_YEARS = 146097
+DAYS_FROM_MARCH_YEAR_0_TO_1970 = 719468
+NEW_ACCOUNT_DAYS = 7
+YOUNG_ACCOUNT_DAYS = 90
+
+pub struct Date {
+  year: Int
+  month: Int
+  day: Int
+
+  pub fn days_since_1970 -> ~Int {
+    march_year = ~march_based_year(year, month)
+    era = ~era_of(march_year)
+    year_of_era = ~(march_year - era * 400)
+    day_of_year = ~day_of_march_year(~march_based_month(month), day)
+    day_of_era = ~day_of_era_of(year_of_era, day_of_year)
+    ~(era * DAYS_PER_400_YEARS + day_of_era - DAYS_FROM_MARCH_YEAR_0_TO_1970)
+  }
+
+  pub fn days_until(later: Date) -> ~Int {
+    then = ~(self.days_since_1970)
+    ~(~(later.days_since_1970) - then)
+  }
+
+  pub fn months_until(later: Date) -> ~Int {
+    months = ~((later.year - year) * MONTHS_PER_YEAR + later.month - month)
+    later.day < day ? ~(months - 1) : months
+  }
+
+  pub fn long -> ~Str { "#{~month_name(month)} #{day}, #{year}" }
+
+  pub fn ymd -> Str { "#{year}-#{two_digits(month)}-#{two_digits(day)}" }
+
+  pub fn age_at(now: Date) -> ~Str {
+    months = ~(self.months_until(now))
+    case {
+      months >= MONTHS_PER_YEAR => years_and_months(months)
+      months >= 1 => pluralize(months, "month")
+      _ => days_ago(~(self.days_until(now)))
+    }
+  }
+
+  pub fn tone_at(now: Date) -> ~Str { account_tone(~(self.days_until(now))) }
+}
+
+fn march_based_year(year: Int, month: Int) -> ~Int { month <= 2 ? ~(year - 1) : year }
+
+fn march_based_month(month: Int) -> ~Int {
+  shifted = ~(month + 9)
+  shifted % MONTHS_PER_YEAR
+}
+
+fn era_of(march_year: Int) -> ~Int {
+  rounded_toward_negative = march_year >= 0 ? march_year : ~(march_year - 399)
+  rounded_toward_negative / 400
+}
+
+fn day_of_march_year(march_month: Int, day: Int) -> ~Int {
+  scaled = ~(153 * march_month + 2)
+  days_before_month = scaled / 5
+  ~(days_before_month + day - 1)
+}
+
+fn day_of_era_of(year_of_era: Int, day_of_year: Int) -> ~Int {
+  leap_years = year_of_era / 4
+  skipped_leap_years = year_of_era / 100
+  ~(year_of_era * 365 + leap_years - skipped_leap_years + day_of_year)
+}
+
+fn month_name(month: Int) -> ~Str { nth(MONTH_NAMES, ~(month - 1)) }
+fn two_digits(n: Int) -> Str { n < 10 ? "0#{n}" : "#{n}" }
+fn pluralize(count: Int, unit: Str) -> Str { count == 1 ? "1 #{unit}" : "#{count} #{unit}s" }
+
+fn years_and_months(months: Int) -> Str {
+  years = pluralize(months / MONTHS_PER_YEAR, "year")
+  leftover = months % MONTHS_PER_YEAR
+  leftover == 0 ? years : "#{years}, #{pluralize(leftover, "month")}"
+}
+
+fn days_ago(days: Int) -> Str { days <= 0 ? "today" : pluralize(days, "day") }
+
+fn account_tone(age_in_days: Int) -> Str {
+  case {
+    age_in_days < NEW_ACCOUNT_DAYS => "new"
+    age_in_days < YOUNG_ACCOUNT_DAYS => "young"
+    _ => "old"
+  }
+}
+
+fn date_fields(timestamp: Str) -> [Str] { take_bytes(timestamp, 10).split("-") }
+
+fn iso_date_shaped?(fields: [Str]) -> Bool {
+  fields.size == 3 && digits_of_width?(nth(fields, 0), 4) && digits_of_width?(nth(fields, 1), 2) && digits_of_width?(nth(fields, 2), 2)
+}
+
+fn plausible?(date: Date) -> Bool { (1..12).include?(date.month) && (1..31).include?(date.day) }
+
+fn date_from_fields(fields: [Str]) -> Date { Date.new(year: nth(fields, 0).to_i, month: nth(fields, 1).to_i, day: nth(fields, 2).to_i) }
+
+pub fn parse_iso_date(timestamp: Str) -> Date? {
+  fields = date_fields(timestamp)
+  return none unless iso_date_shaped?(fields)
+  date = date_from_fields(fields)
+  plausible?(date) ? date : none
+}

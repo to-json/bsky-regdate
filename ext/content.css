@@ -1,0 +1,17 @@
+.alx-regdate {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  font-family: inherit;
+  color: inherit;
+  opacity: 0.7;
+}
+.alx-regdate[data-tone="young"] {
+  opacity: 1;
+  color: #c27c0e;
+}
+.alx-regdate[data-tone="new"] {
+  opacity: 1;
+  color: #d93a3a;
+  font-weight: 600;
+}

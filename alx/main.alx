@@ -1,0 +1,12 @@
+import "regdate"
+
+def read(path: Str) -> Str { File.read(path).unwrap_or("") }
+
+def bodies_of(request: regdate.Request) -> Map[Str, Str] {
+  bodies: Map[Str, Str] = {}
+  for name, path in request.fetched { bodies[name] = read(path) }
+  bodies
+}
+
+request = regdate.parse_request(read("request"))
+puts regdate.next_step(regdate.Lookup.new(request: request, bodies: bodies_of(request)))

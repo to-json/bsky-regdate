@@ -1,0 +1,40 @@
+fn date(s: Str) -> Date { parse_iso_date(s).unwrap }
+
+test "parse" {
+  d = date("2023-04-27T12:34:56.789Z")
+  assert_eq d.year, 2023
+  assert_eq d.month, 4
+  assert_eq d.day, 27
+  assert parse_iso_date("2023-4-27").none?
+  assert parse_iso_date("2023-13-01T00:00:00Z").none?
+  assert parse_iso_date("").none?
+}
+
+test "days since 1970" {
+  assert_eq date("1970-01-01").days_since_1970.unwrap, 0
+  assert_eq date("2000-03-01").days_since_1970.unwrap, 11017
+  assert_eq date("2024-02-28").days_until(date("2024-03-01")).unwrap, 2
+}
+
+test "labels" {
+  assert_eq date("2023-04-07").long.unwrap, "Apr 7, 2023"
+  assert_eq date("2023-04-07").ymd, "2023-04-07"
+}
+
+test "age" {
+  now = date("2026-10-02")
+  assert_eq date("2023-04-27").age_at(now).unwrap, "3 years, 5 months"
+  assert_eq date("2024-10-02").age_at(now).unwrap, "2 years"
+  assert_eq date("2025-10-03").age_at(now).unwrap, "11 months"
+  assert_eq date("2026-09-02").age_at(now).unwrap, "1 month"
+  assert_eq date("2026-09-20").age_at(now).unwrap, "12 days"
+  assert_eq date("2026-10-01").age_at(now).unwrap, "1 day"
+  assert_eq date("2026-10-02").age_at(now).unwrap, "today"
+}
+
+test "tone" {
+  now = date("2026-10-02")
+  assert_eq date("2026-09-30").tone_at(now).unwrap, "new"
+  assert_eq date("2026-08-01").tone_at(now).unwrap, "young"
+  assert_eq date("2023-01-01").tone_at(now).unwrap, "old"
+}

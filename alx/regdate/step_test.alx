@@ -1,0 +1,49 @@
+NOW = "now 2026-10-02T12:00:00.000Z\n"
+PROFILE_JSON = "{\"did\":\"did:plc:abc234\",\"handle\":\"a.b\",\"createdAt\":\"2023-05-01T00:00:00.000Z\",\"viewer\":{\"muted\":false}}"
+PLC_JSON = "[{\"did\":\"did:plc:abc234\",\"operation\":{\"type\":\"plc_operation\"},\"createdAt\":\"2023-04-27T10:00:00.000Z\"}]"
+
+fn run(text: Str, bodies: Map[Str, Str]) -> Str { next_step(Lookup.new(request: parse_request(text), bodies: bodies)) }
+
+test "request lines" {
+  r = parse_request("#{NOW}url https://bsky.app/profile/a.b\nhint at://x y\nheader\ngot plc body/plc\nfailed profile\n")
+  assert_eq r.url, "https://bsky.app/profile/a.b"
+  assert_eq r.hints[0], "at://x y"
+  assert r.header_visible
+  assert_eq r.fetched["plc"] || "", "body/plc"
+  assert_eq r.failed[0], "profile"
+}
+
+test "not a profile" {
+  assert_eq run("#{NOW}url https://bsky.app/notifications\n", {}), "none"
+}
+
+test "handle: profile, then plc" {
+  req = "#{NOW}url https://bsky.app/profile/a.b\n"
+  assert_eq run(req, {}), "fetch profile https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=a.b"
+  assert_eq run(req, {"profile" => PROFILE_JSON}), "fetch plc https://plc.directory/did:plc:abc234/log/audit"
+  assert_eq run(req, {"profile" => PROFILE_JSON, "plc" => PLC_JSON}), "show did:plc:abc234 old 2023-04-27 Joined Apr 27, 2023 (3 years, 5 months ago)"
+}
+
+test "did: plc only" {
+  req = "#{NOW}url https://witchsky.app/profile/did:plc:abc234\n"
+  assert_eq run(req, {}), "fetch plc https://plc.directory/did:plc:abc234/log/audit"
+  assert_eq run(req, {"plc" => PLC_JSON}), "show did:plc:abc234 old 2023-04-27 Joined Apr 27, 2023 (3 years, 5 months ago)"
+}
+
+test "plc down: fall back to the profile record" {
+  req = "#{NOW}url https://bsky.app/profile/did:plc:abc234\nfailed plc\n"
+  assert_eq run(req, {}), "fetch profile https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=did:plc:abc234"
+  assert_eq run(req, {"profile" => PROFILE_JSON}), "show did:plc:abc234 old 2023-05-01 Joined May 1, 2023 (3 years, 5 months ago)"
+}
+
+test "did:web uses the profile" {
+  req = "#{NOW}url https://bsky.app/profile/did:web:example.com\n"
+  assert_eq run(req, {}), "fetch profile https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=did:web:example.com"
+  web = "{\"did\":\"did:web:example.com\",\"createdAt\":\"2026-09-30T00:00:00Z\"}"
+  assert_eq run(req, {"profile" => web}), "show did:web:example.com new 2026-09-30 Joined Sep 30, 2026 (2 days ago)"
+}
+
+test "failures" {
+  assert_eq run("#{NOW}url https://bsky.app/profile/a.b\nfailed profile\n", {}), "error can't resolve a.b"
+  assert_eq run("now x\nurl https://bsky.app/profile/a.b\n", {}), "error bad clock x"
+}

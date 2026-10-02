@@ -1,0 +1,61 @@
+PROFILE = "profile"
+PLC_LOG = "plc"
+PROFILE_ENDPOINT = "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor="
+PLC_DIRECTORY = "https://plc.directory/"
+NOT_A_PROFILE = "none"
+
+pub struct Lookup {
+  request: Request
+  bodies: Map[Str, Str]
+
+  pub fn body(name: Str) -> Str { bodies[name] || "" }
+  pub fn settled?(name: Str) -> Bool { bodies.key?(name) || request.failed.include?(name) }
+}
+
+fn fetch(name: Str, url: Str) -> Str { "fetch #{name} #{url}" }
+fn fetch_profile(actor: Str) -> Str { fetch(PROFILE, "#{PROFILE_ENDPOINT}#{actor}") }
+fn fetch_plc_log(did: Str) -> Str { fetch(PLC_LOG, "#{PLC_DIRECTORY}#{did}/log/audit") }
+fn failure(message: Str) -> Str { "error #{message}" }
+
+fn show(did: Str, created: Date, now: Date) -> ~Str {
+  tone = ~(created.tone_at(now))
+  joined = ~(created.long)
+  age = ~(created.age_at(now))
+  "show #{did} #{tone} #{created.ymd} Joined #{joined} (#{age} ago)"
+}
+
+fn needs_profile_to_find_did?(lookup: Lookup, actor: Str) -> Bool { !did?(actor) && !lookup.settled?(PROFILE) }
+fn needs_plc_log?(lookup: Lookup, did: Str) -> Bool { plc_did?(did) && !lookup.settled?(PLC_LOG) }
+
+fn did_of(lookup: Lookup, actor: Str) -> ~Str {
+  did?(actor) ? actor : ~string_member_or_blank(lookup.body(PROFILE), "did", TOP_LEVEL)
+}
+
+fn plc_creation(lookup: Lookup, did: Str) -> ~Str {
+  plc_did?(did) ? ~string_member_or_blank(lookup.body(PLC_LOG), "createdAt", INSIDE_TOP_LEVEL) : ""
+}
+
+fn profile_creation(lookup: Lookup) -> ~Str { ~string_member_or_blank(lookup.body(PROFILE), "createdAt", TOP_LEVEL) }
+
+fn answer_for(lookup: Lookup, actor: Str, now: Date) -> ~Str {
+  return fetch_profile(actor) if needs_profile_to_find_did?(lookup, actor)
+  did = ~did_of(lookup, actor)
+  return failure("can't resolve #{actor}") if blank?(did)
+  return fetch_plc_log(did) if needs_plc_log?(lookup, did)
+  from_plc = ~plc_creation(lookup, did)
+  return fetch_profile(did) if blank?(from_plc) && !lookup.settled?(PROFILE)
+  created = present?(from_plc) ? from_plc : ~profile_creation(lookup)
+  if date = parse_iso_date(created) { return ~show(did, date, now) }
+  failure("no creation date for #{did}")
+}
+
+fn answer(lookup: Lookup) -> ~Str {
+  request = lookup.request
+  now = parse_iso_date(request.now)
+  return failure("bad clock #{request.now}") if now.none?
+  actor = profile_actor(request.url, request.hints, request.header_visible)
+  return NOT_A_PROFILE if actor.none?
+  ~answer_for(lookup, actor.unwrap, now.unwrap)
+}
+
+pub fn next_step(lookup: Lookup) -> Str { answer(lookup).rescue { |e| failure("#{e}") } }

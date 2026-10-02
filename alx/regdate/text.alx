@@ -1,0 +1,26 @@
+fn present?(s: Str) -> Bool { s.size > 0 }
+fn blank?(s: Str) -> Bool { s.size == 0 }
+
+fn take_bytes(s: Str, count: Int) -> Str { Str.from_bytes(s.bytes.take(count).to_a) }
+fn drop_bytes(s: Str, count: Int) -> Str { Str.from_bytes(s.bytes.drop(count).to_a) }
+
+fn starts_with?(s: Str, prefix: Str) -> Bool { take_bytes(s, prefix.size) == prefix }
+fn without_prefix(s: Str, prefix: Str) -> Str { starts_with?(s, prefix) ? drop_bytes(s, prefix.size) : s }
+
+fn first(items: [Str]) -> Str? { items.find { true } }
+fn nth(items: [Str], index: Int) -> Str { first(items.drop(index).to_a) || "" }
+fn nonblank(items: [Str]) -> [Str] { items.select { present?(it) }.to_a }
+
+fn before(s: Str, separator: Str) -> Str { first(s.split(separator)) || "" }
+fn first_word(line: Str) -> Str { before(line, " ") }
+fn after_first_word(line: Str) -> Str { drop_bytes(drop_bytes(line, first_word(line).size), 1) }
+
+fn join(items: [Str], separator: Str) -> Str {
+  joined = ""
+  for item, index in items.each_with_index { joined = index == 0 ? item : "#{joined}#{separator}#{item}" }
+  joined
+}
+fn replace(s: Str, target: Str, replacement: Str) -> Str { join(s.split(target), replacement) }
+
+fn all_digits?(s: Str) -> Bool { present?(s) && s.bytes.all? { digit?(it) } }
+fn digits_of_width?(s: Str, width: Int) -> Bool { s.size == width && all_digits?(s) }

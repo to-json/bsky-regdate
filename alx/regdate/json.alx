@@ -1,0 +1,93 @@
+TOP_LEVEL = 1
+INSIDE_TOP_LEVEL = 2
+
+struct Scan {
+  key: Str
+  depth: Int
+  current_depth: Int
+  in_string: Bool
+  escaping: Bool
+  string_bytes: [Byte]
+  last_string: Str
+  value_is_next: Bool
+  found: Str?
+}
+
+fn scanning_for(key: Str, depth: Int) -> Scan { Scan.new(key: key, depth: depth) }
+
+fn opening_string(scan: Scan) -> Scan {
+  updated = scan
+  updated.in_string = true
+  updated.string_bytes = []
+  updated
+}
+
+fn closing_string(scan: Scan) -> Scan {
+  updated = scan
+  updated.in_string = false
+  updated.last_string = Str.from_bytes(scan.string_bytes)
+  updated.found = updated.last_string if scan.value_is_next
+  updated
+}
+
+fn string_byte(scan: Scan, b: Byte) -> Scan {
+  updated = scan
+  updated.escaping = !scan.escaping && b == BACKSLASH
+  updated.string_bytes << b
+  updated
+}
+
+fn key_separator(scan: Scan) -> Scan {
+  updated = scan
+  updated.value_is_next = scan.current_depth == scan.depth && scan.last_string == scan.key
+  updated
+}
+
+fn entering_container(scan: Scan) -> ~Scan {
+  updated = scan
+  updated.current_depth = ~(scan.current_depth + 1)
+  updated.value_is_next = false
+  updated
+}
+
+fn leaving_container(scan: Scan) -> ~Scan {
+  updated = scan
+  updated.current_depth = ~(scan.current_depth - 1)
+  updated
+}
+
+fn bare_value_byte(scan: Scan, b: Byte) -> Scan {
+  updated = scan
+  updated.value_is_next = scan.value_is_next && whitespace?(b)
+  updated
+}
+
+fn inside_string(scan: Scan, b: Byte) -> Scan {
+  case {
+    !scan.escaping && b == QUOTE => closing_string(scan)
+    _ => string_byte(scan, b)
+  }
+}
+
+fn outside_string(scan: Scan, b: Byte) -> ~Scan {
+  case {
+    b == QUOTE => opening_string(scan)
+    b == COLON => key_separator(scan)
+    opens_container?(b) => ~entering_container(scan)
+    closes_container?(b) => ~leaving_container(scan)
+    _ => bare_value_byte(scan, b)
+  }
+}
+
+fn advance(scan: Scan, b: Byte) -> ~Scan { scan.in_string ? inside_string(scan, b) : ~outside_string(scan, b) }
+
+pub fn string_member(json: Str, key: Str, depth: Int) -> ~Str? {
+  scan = scanning_for(key, depth)
+  for b in json.bytes {
+    scan = ~advance(scan, b)
+    if found = scan.found { return found }
+  }
+  none
+}
+
+pub fn string_member_or_blank(json: Str, key: Str, depth: Int) -> ~Str { ~string_member(json, key, depth) || "" }

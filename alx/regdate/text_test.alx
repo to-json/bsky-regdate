@@ -1,0 +1,26 @@
+test "prefixes" {
+  assert starts_with?("did:plc:x", "did:plc:")
+  assert !starts_with?("did", "did:plc:")
+  assert_eq without_prefix("at://x", "at://"), "x"
+  assert_eq without_prefix("x", "at://"), "x"
+}
+
+test "words" {
+  assert_eq first_word("got plc body/plc"), "got"
+  assert_eq after_first_word("got plc body/plc"), "plc body/plc"
+  assert_eq after_first_word("header"), ""
+}
+
+test "lists" {
+  assert_eq nth(["a", "b"], 1), "b"
+  assert_eq nth(["a"], 5), ""
+  assert_eq nonblank(["", "a", ""]).size, 1
+  assert_eq join(["a", "b", "c"], ":"), "a:b:c"
+  assert_eq replace("did%3Aplc", "%3A", ":"), "did:plc"
+}
+
+test "digits" {
+  assert digits_of_width?("2023", 4)
+  assert !digits_of_width?("203", 4)
+  assert !digits_of_width?("20x3", 4)
+}
