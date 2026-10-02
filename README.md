@@ -6,12 +6,12 @@ Browser extension: shows a Bluesky account's registration date under its bio.
 
 | Site | Status |
 | --- | --- |
-| bsky.app | Enabled, verified |
-| witchsky.app | Enabled, verified |
-| blacksky.community | Enabled, verified |
-| mu.social (Eurosky) | Enabled, verified |
-| deer.social | Enabled |
-| other social-app forks | Add origin to `manifest.json` `matches` |
+| bsky.app | i use this |
+| witchsky.app | tested once |
+| blacksky.community | tested once |
+| mu.social (Eurosky) | tested once |
+| deer.social | should work |
+| other social-app forks | add 'em to `manifest.json` `matches`, might Just Work |
 
 ## Commands
 
@@ -26,6 +26,7 @@ Install:
 Chrome → chrome://extensions → Load unpacked → `ext/`. 
 Firefox 121+ → about:debugging → Load Temporary Add-on → `ext/manifest.json`.
 
-`ext/pkg/` is a vendored build of the Alexandrite compiler (wasm), Apache-2.0 WITH LLVM-exception; see `ext/pkg/LICENSE`.
+`ext/pkg/` is a vendored build of the Alexandrite compiler (wasm)
+Apache-2.0 WITH LLVM-exception; see `ext/pkg/LICENSE`.
 
 Licensed under Apache-2.0 (`LICENSE`), except `ext/pkg/`.
