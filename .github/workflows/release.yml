@@ -1,0 +1,38 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check manifest version matches tag
+        if: github.ref_type == 'tag'
+        run: |
+          v=$(node -p "require('./ext/manifest.json').version")
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "manifest.json version $v != tag $GITHUB_REF_NAME" >&2; exit 1; }
+      - name: Build
+        run: ./build.sh
+      - name: Test
+        run: node test.mjs
+      - uses: actions/upload-artifact@v5
+        with:
+          name: bsky-regdate-xpi
+          path: dist/bsky-regdate.xpi
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp dist/bsky-regdate.xpi "dist/bsky-regdate-$GITHUB_REF_NAME.xpi"
+          gh release create "$GITHUB_REF_NAME" "dist/bsky-regdate-$GITHUB_REF_NAME.xpi" --repo "$GITHUB_REPOSITORY" --generate-notes
